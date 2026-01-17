@@ -1,0 +1,105 @@
+{
+  "colorScheme": "light",
+  "fonts": [
+    {
+      "family": "Arial",
+      "count": 77
+    },
+    {
+      "family": "Helvetica",
+      "count": 69
+    },
+    {
+      "family": "sans-serif",
+      "count": 69
+    },
+    {
+      "family": "Google Sans",
+      "count": 41
+    },
+    {
+      "family": "Google Sans Text",
+      "count": 28
+    },
+    {
+      "family": "Google Sans Mono",
+      "count": 1
+    },
+    {
+      "family": "monospace",
+      "count": 1
+    }
+  ],
+  "colors": {
+    "primary": "#FFB1EE",
+    "accent": "#8F9AFF",
+    "background": "#FFFFFF",
+    "textPrimary": "#000000",
+    "link": "#8F9AFF"
+  },
+  "typography": {
+    "fontFamilies": {
+      "primary": "Google Sans",
+      "heading": "Google Sans"
+    },
+    "fontStacks": {
+      "body": [
+        "Google Sans",
+        "Helvetica",
+        "Arial",
+        "sans-serif"
+      ],
+      "heading": [
+        "Google Sans",
+        "Helvetica",
+        "Arial",
+        "sans-serif"
+      ],
+      "paragraph": [
+        "Google Sans Text",
+        "Helvetica",
+        "Arial",
+        "sans-serif"
+      ]
+    },
+    "fontSizes": {
+      "h1": "32px",
+      "h2": "80px",
+      "body": "20px"
+    }
+  },
+  "spacing": {
+    "baseUnit": 4,
+    "borderRadius": "40px"
+  },
+  "components": {},
+  "images": {
+    "logo": "File saved at: attached_assets/logo.svg",
+    "favicon": "https://labs.google/assets/icons/favicon-48x48.png",
+    "ogImage": "/assets/preview.webp"
+  },
+  "__framework_hints": [],
+  "__llm_logo_reasoning": {
+    "selectedIndex": 0,
+    "reasoning": "Heuristic fallback: Moderate indicators: header logo linking to homepage, header location, visible, highest logo on page, SVG format. Score: 100. May benefit from LLM validation.",
+    "confidence": 0.5
+  },
+  "__llm_button_reasoning": {
+    "primary": {
+      "index": -1,
+      "text": "N/A",
+      "reasoning": "LLM failed"
+    },
+    "secondary": {
+      "index": -1,
+      "text": "N/A",
+      "reasoning": "LLM failed"
+    },
+    "confidence": 0
+  },
+  "confidence": {
+    "buttons": 0,
+    "colors": 0,
+    "overall": 0
+  }
+}
