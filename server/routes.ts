@@ -5,6 +5,7 @@ import { api } from "@shared/routes";
 import { z } from "zod";
 import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
 import Stripe from "stripe";
+import { securityHeadersMiddleware } from "./middleware/securityHeaders";
 
 // Initialize Stripe if key is available
 // Using stable API version compatible with stripe@20.1.2
@@ -16,6 +17,9 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+  // Apply security headers middleware to all routes
+  app.use(securityHeadersMiddleware);
+
   // Setup authentication
   await setupAuth(app);
   registerAuthRoutes(app);
