@@ -11,7 +11,7 @@ import { storage } from "../storage";
  */
 
 const stripe = process.env.STRIPE_SECRET_KEY
-  ? new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: "2025-12-15.clover" })
+  ? new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: "2024-12-15" as any })
   : null;
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;

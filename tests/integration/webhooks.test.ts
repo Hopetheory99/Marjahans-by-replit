@@ -35,7 +35,7 @@ describe("Stripe Webhook Integration", () => {
       const event: Stripe.Event = {
         id: "evt_test_123",
         object: "event",
-        api_version: "2025-12-15.clover",
+        api_version: "2024-12-15",
         created: Math.floor(Date.now() / 1000),
         data: {
           object: {
@@ -77,7 +77,7 @@ describe("Stripe Webhook Integration", () => {
       const event: Stripe.PaymentIntentSucceededEvent = {
         id: "evt_test_succeeded",
         object: "event",
-        api_version: "2025-12-15.clover",
+        api_version: "2024-12-15",
         created: Math.floor(Date.now() / 1000),
         data: {
           object: {
@@ -112,7 +112,7 @@ describe("Stripe Webhook Integration", () => {
       const event: Stripe.PaymentIntentPaymentFailedEvent = {
         id: "evt_test_failed",
         object: "event",
-        api_version: "2025-12-15.clover",
+        api_version: "2024-12-15",
         created: Math.floor(Date.now() / 1000),
         data: {
           object: {
@@ -159,7 +159,7 @@ describe("Stripe Webhook Integration", () => {
       const event: Stripe.ChargeDisputeCreatedEvent = {
         id: "evt_test_dispute",
         object: "event",
-        api_version: "2025-12-15.clover",
+        api_version: "2024-12-15",
         created: Math.floor(Date.now() / 1000),
         data: {
           object: {
@@ -262,7 +262,7 @@ describe("Stripe Webhook Integration", () => {
       const event: Stripe.PaymentIntentSucceededEvent = {
         id: "evt_test_metadata",
         object: "event",
-        api_version: "2025-12-15.clover",
+        api_version: "2024-12-15",
         created: Math.floor(Date.now() / 1000),
         data: {
           object: {
@@ -297,7 +297,7 @@ describe("Stripe Webhook Integration", () => {
       const event: Stripe.PaymentIntentSucceededEvent = {
         id: "evt_test_no_metadata",
         object: "event",
-        api_version: "2025-12-15.clover",
+        api_version: "2024-12-15",
         created: Math.floor(Date.now() / 1000),
         data: {
           object: {

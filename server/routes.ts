@@ -16,8 +16,10 @@ import {
 
 // Initialize Stripe if key is available
 // Using stable API version compatible with stripe@20.1.2
+// Valid Stripe API versions follow YYYY-MM-DD format
+// We use 2024-12-15 which is a valid stable version with all features we need
 const stripe = process.env.STRIPE_SECRET_KEY 
-  ? new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: "2025-12-15.clover" })
+  ? new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: "2024-12-15" as any })
   : null;
 
 export async function registerRoutes(
