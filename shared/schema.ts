@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, serial, integer, boolean, timestamp, decimal, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, serial, integer, boolean, timestamp, decimal, jsonb, index } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -37,7 +37,16 @@ export const products = pgTable("products", {
   isNewArrival: boolean("is_new_arrival").default(false),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
-});
+}, (table) => [
+  // Index for sorting and filtering by creation date
+  index("idx_products_created_at").on(table.createdAt),
+  // Index for featured products query
+  index("idx_products_is_featured").on(table.isFeatured),
+  // Index for new arrivals query
+  index("idx_products_is_new_arrival").on(table.isNewArrival),
+  // Index for category lookups
+  index("idx_products_category_id").on(table.categoryId),
+]);
 
 // === CART ITEMS ===
 export const cartItems = pgTable("cart_items", {
@@ -46,7 +55,12 @@ export const cartItems = pgTable("cart_items", {
   productId: integer("product_id").references(() => products.id).notNull(),
   quantity: integer("quantity").notNull().default(1),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => [
+  // Index for user's cart lookup
+  index("idx_cart_items_user_id").on(table.userId),
+  // Index for product lookups in cart
+  index("idx_cart_items_product_id").on(table.productId),
+]);
 
 // === ORDERS ===
 export const orders = pgTable("orders", {
@@ -59,7 +73,14 @@ export const orders = pgTable("orders", {
   stripePaymentIntentId: text("stripe_payment_intent_id"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
-});
+}, (table) => [
+  // Index for user's order lookup
+  index("idx_orders_user_id").on(table.userId),
+  // Index for order status filtering
+  index("idx_orders_status").on(table.status),
+  // Index for sorting orders by creation date
+  index("idx_orders_created_at").on(table.createdAt),
+]);
 
 // === ORDER ITEMS ===
 export const orderItems = pgTable("order_items", {
@@ -76,7 +97,12 @@ export const wishlistItems = pgTable("wishlist_items", {
   userId: varchar("user_id").notNull(),
   productId: integer("product_id").references(() => products.id).notNull(),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => [
+  // Index for user's wishlist lookup
+  index("idx_wishlist_items_user_id").on(table.userId),
+  // Index for product lookups in wishlist
+  index("idx_wishlist_items_product_id").on(table.productId),
+]);
 
 // === RELATIONS ===
 export const categoriesRelations = relations(categories, ({ many }) => ({
