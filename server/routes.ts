@@ -8,6 +8,11 @@ import Stripe from "stripe";
 import { securityHeadersMiddleware } from "./middleware/securityHeaders";
 import { rateLimiters } from "./middleware/rateLimit";
 import { handleStripeWebhook, rawBodyParser } from "./webhooks/stripe";
+import { 
+  cookieParserMiddleware, 
+  validateCsrfToken, 
+  generateCsrfToken 
+} from "./middleware/csrf";
 
 // Initialize Stripe if key is available
 // Using stable API version compatible with stripe@20.1.2
@@ -22,9 +27,19 @@ export async function registerRoutes(
   // Apply security headers middleware to all routes
   app.use(securityHeadersMiddleware);
 
+  // Apply CSRF protection middleware (must be after express.json() in main app setup)
+  app.use(cookieParserMiddleware);
+  app.use(validateCsrfToken);
+
   // Setup authentication
   await setupAuth(app);
   registerAuthRoutes(app);
+
+  // ===== CSRF PROTECTION =====
+  // Generate CSRF token endpoint (must be accessible before state-changing requests)
+  app.get("/api/csrf-token", (req, res) => {
+    generateCsrfToken(req, res);
+  });
 
   // ===== CATEGORIES =====
   app.get(api.categories.list.path, async (req, res) => {
