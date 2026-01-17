@@ -3,7 +3,7 @@ import type { Server } from "http";
 import { storage } from "./storage";
 import { api } from "@shared/routes";
 import { z } from "zod";
-import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
+import { isAuthenticated } from "./replit_integrations/auth";
 import Stripe from "stripe";
 import { securityHeadersMiddleware } from "./middleware/securityHeaders";
 import { rateLimiters } from "./middleware/rateLimit";
@@ -13,6 +13,14 @@ import {
   validateCsrfToken, 
   generateCsrfToken 
 } from "./middleware/csrf";
+import {
+  registerAuthModuleRoutes,
+  registerProductRoutes,
+  registerCartRoutes,
+  registerOrderRoutes,
+  registerCheckoutRoutes,
+  registerFavoritesRoutes,
+} from "./routes/index";
 
 // Initialize Stripe if key is available
 // Using stable API version compatible with stripe@20.1.2
@@ -34,8 +42,7 @@ export async function registerRoutes(
   app.use(validateCsrfToken);
 
   // Setup authentication
-  await setupAuth(app);
-  registerAuthRoutes(app);
+  await registerAuthModuleRoutes(app);
 
   // ===== CSRF PROTECTION =====
   // Generate CSRF token endpoint (must be accessible before state-changing requests)
@@ -43,387 +50,20 @@ export async function registerRoutes(
     generateCsrfToken(req, res);
   });
 
-  // ===== CATEGORIES =====
-  app.get(api.categories.list.path, async (req, res) => {
-    try {
-      const categories = await storage.getCategories();
-      res.json(categories);
-    } catch (error) {
-      console.error("Error fetching categories:", error);
-      res.status(500).json({ message: "Failed to fetch categories" });
-    }
-  });
-
-  app.get(api.categories.get.path, async (req, res) => {
-    try {
-      const category = await storage.getCategoryBySlug(req.params.slug);
-      if (!category) {
-        return res.status(404).json({ message: "Category not found" });
-      }
-      res.json(category);
-    } catch (error) {
-      console.error("Error fetching category:", error);
-      res.status(500).json({ message: "Failed to fetch category" });
-    }
-  });
-
   // ===== PRODUCTS =====
-  // Featured products (must be before :slug route)
-  app.get("/api/products/featured", async (req, res) => {
-    try {
-      const products = await storage.getFeaturedProducts();
-      res.json(products);
-    } catch (error) {
-      console.error("Error fetching featured products:", error);
-      res.status(500).json({ message: "Failed to fetch featured products" });
-    }
-  });
-
-  // New arrivals (must be before :slug route)
-  app.get("/api/products/new-arrivals", async (req, res) => {
-    try {
-      const products = await storage.getNewArrivals();
-      res.json(products);
-    } catch (error) {
-      console.error("Error fetching new arrivals:", error);
-      res.status(500).json({ message: "Failed to fetch new arrivals" });
-    }
-  });
-
-  // Search products
-  app.get("/api/products/search", rateLimiters.search, async (req, res) => {
-    try {
-      const q = req.query.q as string;
-      const limit = req.query.limit ? Number(req.query.limit) : 20;
-      
-      if (!q) {
-        return res.json([]);
-      }
-      
-      const products = await storage.searchProducts(q, limit);
-      res.json(products);
-    } catch (error) {
-      console.error("Error searching products:", error);
-      res.status(500).json({ message: "Failed to search products" });
-    }
-  });
-
-  // List products with filters
-  app.get(api.products.list.path, async (req, res) => {
-    try {
-      const params = {
-        search: req.query.search as string | undefined,
-        categorySlug: req.query.categorySlug as string | undefined,
-        minPrice: req.query.minPrice ? Number(req.query.minPrice) : undefined,
-        maxPrice: req.query.maxPrice ? Number(req.query.maxPrice) : undefined,
-        material: req.query.material as string | undefined,
-        inStock: req.query.inStock === 'true' ? true : req.query.inStock === 'false' ? false : undefined,
-        isFeatured: req.query.isFeatured === 'true' ? true : undefined,
-        isNewArrival: req.query.isNewArrival === 'true' ? true : undefined,
-        sortBy: req.query.sortBy as any,
-        limit: req.query.limit ? Number(req.query.limit) : undefined,
-        offset: req.query.offset ? Number(req.query.offset) : undefined,
-      };
-      
-      const products = await storage.getProducts(params);
-      res.json(products);
-    } catch (error) {
-      console.error("Error fetching products:", error);
-      res.status(500).json({ message: "Failed to fetch products" });
-    }
-  });
-
-  // Get single product by slug
-  app.get(api.products.get.path, async (req, res) => {
-    try {
-      const product = await storage.getProductBySlug(req.params.slug);
-      if (!product) {
-        return res.status(404).json({ message: "Product not found" });
-      }
-      res.json(product);
-    } catch (error) {
-      console.error("Error fetching product:", error);
-      res.status(500).json({ message: "Failed to fetch product" });
-    }
-  });
+  await registerProductRoutes(app);
 
   // ===== CART =====
-  app.get(api.cart.get.path, rateLimiters.cart, isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const items = await storage.getCartItems(userId);
-      res.json(items);
-    } catch (error) {
-      console.error("Error fetching cart:", error);
-      res.status(500).json({ message: "Failed to fetch cart" });
-    }
-  });
-
-  app.post(api.cart.add.path, rateLimiters.cart, isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const input = api.cart.add.input.parse(req.body);
-      
-      const product = await storage.getProductById(input.productId);
-      if (!product) {
-        return res.status(400).json({ message: "Product not found" });
-      }
-      
-      const cartItem = await storage.addToCart(userId, input.productId, input.quantity || 1);
-      res.status(201).json(cartItem);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: error.errors[0].message, field: error.errors[0].path.join('.') });
-      }
-      console.error("Error adding to cart:", error);
-      res.status(500).json({ message: "Failed to add to cart" });
-    }
-  });
-
-  app.patch(api.cart.update.path, isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const id = Number(req.params.id);
-      const input = api.cart.update.input.parse(req.body);
-      
-      const item = await storage.getCartItem(id, userId);
-      if (!item) {
-        return res.status(404).json({ message: "Cart item not found" });
-      }
-      
-      const updated = await storage.updateCartItem(id, userId, input.quantity);
-      res.json(updated);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: error.errors[0].message, field: error.errors[0].path.join('.') });
-      }
-      console.error("Error updating cart:", error);
-      res.status(500).json({ message: "Failed to update cart" });
-    }
-  });
-
-  app.delete(api.cart.remove.path, isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const id = Number(req.params.id);
-      
-      const item = await storage.getCartItem(id, userId);
-      if (!item) {
-        return res.status(404).json({ message: "Cart item not found" });
-      }
-      
-      await storage.removeFromCart(id, userId);
-      res.status(204).send();
-    } catch (error) {
-      console.error("Error removing from cart:", error);
-      res.status(500).json({ message: "Failed to remove from cart" });
-    }
-  });
-
-  app.delete(api.cart.clear.path, isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      await storage.clearCart(userId);
-      res.status(204).send();
-    } catch (error) {
-      console.error("Error clearing cart:", error);
-      res.status(500).json({ message: "Failed to clear cart" });
-    }
-  });
-
-  // ===== WISHLIST =====
-  app.get(api.wishlist.get.path, isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const items = await storage.getWishlistItems(userId);
-      res.json(items);
-    } catch (error) {
-      console.error("Error fetching wishlist:", error);
-      res.status(500).json({ message: "Failed to fetch wishlist" });
-    }
-  });
-
-  app.post(api.wishlist.add.path, isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const input = api.wishlist.add.input.parse(req.body);
-      
-      const product = await storage.getProductById(input.productId);
-      if (!product) {
-        return res.status(400).json({ message: "Product not found" });
-      }
-      
-      const item = await storage.addToWishlist(userId, input.productId);
-      res.status(201).json(item);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: error.errors[0].message, field: error.errors[0].path.join('.') });
-      }
-      console.error("Error adding to wishlist:", error);
-      res.status(500).json({ message: "Failed to add to wishlist" });
-    }
-  });
-
-  app.delete(api.wishlist.remove.path, isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const productId = Number(req.params.productId);
-      
-      await storage.removeFromWishlist(userId, productId);
-      res.status(204).send();
-    } catch (error) {
-      console.error("Error removing from wishlist:", error);
-      res.status(500).json({ message: "Failed to remove from wishlist" });
-    }
-  });
-
-  // ===== CHECKOUT =====
-  app.post(api.checkout.create.path, rateLimiters.checkout, isAuthenticated, async (req: any, res) => {
-    try {
-      if (!stripe) {
-        return res.status(400).json({ message: "Payment system not configured. Please contact support." });
-      }
-      
-      const userId = req.user.claims.sub;
-      const input = api.checkout.create.input.parse(req.body);
-      
-      // Get cart items
-      const cartItems = await storage.getCartItems(userId);
-      if (cartItems.length === 0) {
-        return res.status(400).json({ message: "Cart is empty" });
-      }
-      
-      // Calculate total
-      const total = cartItems.reduce((sum, item) => {
-        return sum + (Number(item.product.price) * item.quantity);
-      }, 0);
-      
-      // Create order
-      const order = await storage.createOrder({
-        userId,
-        status: "pending",
-        totalAmount: total.toFixed(2),
-        shippingAddress: input.shippingAddress,
-      });
-      
-      // Create order items
-      for (const item of cartItems) {
-        await storage.createOrderItem({
-          orderId: order.id,
-          productId: item.productId,
-          quantity: item.quantity,
-          priceAtPurchase: item.product.price,
-        });
-      }
-      
-      // Create Stripe checkout session
-      const session = await stripe.checkout.sessions.create({
-        payment_method_types: ["card"],
-        line_items: cartItems.map(item => ({
-          price_data: {
-            currency: "usd",
-            product_data: {
-              name: item.product.name,
-              description: item.product.description,
-              images: item.product.images?.length ? [item.product.images[0]] : [],
-            },
-            unit_amount: Math.round(Number(item.product.price) * 100),
-          },
-          quantity: item.quantity,
-        })),
-        mode: "payment",
-        success_url: `${req.protocol}://${req.get('host')}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${req.protocol}://${req.get('host')}/cart`,
-        metadata: {
-          orderId: order.id.toString(),
-          userId: userId,
-        },
-      });
-      
-      // Update order with session ID
-      await storage.updateOrderStatus(order.id, "pending", undefined);
-      
-      res.json({ url: session.url, sessionId: session.id });
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: error.errors[0].message, field: error.errors[0].path.join('.') });
-      }
-      console.error("Error creating checkout:", error);
-      res.status(500).json({ message: "Failed to create checkout session" });
-    }
-  });
-
-  app.get(api.checkout.success.path, isAuthenticated, async (req: any, res) => {
-    try {
-      if (!stripe) {
-        return res.status(400).json({ message: "Payment system not configured" });
-      }
-      
-      const userId = req.user.claims.sub;
-      const sessionId = req.query.session_id as string;
-      if (!sessionId) {
-        return res.status(400).json({ message: "Session ID required" });
-      }
-      
-      const session = await stripe.checkout.sessions.retrieve(sessionId);
-      
-      if (session.payment_status === "paid" && session.metadata?.orderId) {
-        const orderId = Number(session.metadata.orderId);
-        
-        // Verify order ownership before updating status (prevent cross-user order fraud)
-        const order = await storage.getOrderById(orderId, userId);
-        if (!order) {
-          console.warn(`Security: Unauthorized checkout success attempt - userId=${userId}, orderId=${orderId}`);
-          return res.status(404).json({ message: "Order not found" });
-        }
-        
-        // Prevent double-payment fraud
-        if (order.status === "paid") {
-          console.warn(`Security: Duplicate payment confirmation - userId=${userId}, orderId=${orderId}`);
-          return res.status(400).json({ message: "Payment already processed" });
-        }
-        
-        await storage.updateOrderStatus(orderId, "paid", session.payment_intent as string);
-        await storage.clearCart(userId);
-        
-        console.log(`[AUDIT] Payment confirmed: orderId=${orderId}, userId=${userId}, amount=${order.totalAmount}`);
-        res.json({ order: { id: orderId, status: "paid" } });
-      } else {
-        res.status(400).json({ message: "Payment not completed" });
-      }
-    } catch (error) {
-      console.error("Error processing checkout success:", error);
-      res.status(500).json({ message: "Failed to process payment confirmation" });
-    }
-  });
+  await registerCartRoutes(app);
 
   // ===== ORDERS =====
-  app.get(api.orders.list.path, isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const orders = await storage.getOrders(userId);
-      res.json(orders);
-    } catch (error) {
-      console.error("Error fetching orders:", error);
-      res.status(500).json({ message: "Failed to fetch orders" });
-    }
-  });
+  await registerOrderRoutes(app);
 
-  app.get(api.orders.get.path, isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const id = Number(req.params.id);
-      
-      const order = await storage.getOrderById(id, userId);
-      if (!order) {
-        return res.status(404).json({ message: "Order not found" });
-      }
-      res.json(order);
-    } catch (error) {
-      console.error("Error fetching order:", error);
-      res.status(500).json({ message: "Failed to fetch order" });
-    }
-  });
+  // ===== CHECKOUT =====
+  registerCheckoutRoutes(app, stripe);
+
+  // ===== FAVORITES =====
+  await registerFavoritesRoutes(app);
 
   // ===== WEBHOOKS =====
   // Stripe webhook endpoint (must come before body parser in middleware chain)
