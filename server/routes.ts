@@ -6,6 +6,7 @@ import { z } from "zod";
 import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
 import Stripe from "stripe";
 import { securityHeadersMiddleware } from "./middleware/securityHeaders";
+import { rateLimiters } from "./middleware/rateLimit";
 
 // Initialize Stripe if key is available
 // Using stable API version compatible with stripe@20.1.2
@@ -72,7 +73,7 @@ export async function registerRoutes(
   });
 
   // Search products
-  app.get("/api/products/search", async (req, res) => {
+  app.get("/api/products/search", rateLimiters.search, async (req, res) => {
     try {
       const q = req.query.q as string;
       const limit = req.query.limit ? Number(req.query.limit) : 20;
@@ -129,7 +130,7 @@ export async function registerRoutes(
   });
 
   // ===== CART =====
-  app.get(api.cart.get.path, isAuthenticated, async (req: any, res) => {
+  app.get(api.cart.get.path, rateLimiters.cart, isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const items = await storage.getCartItems(userId);
@@ -140,7 +141,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post(api.cart.add.path, isAuthenticated, async (req: any, res) => {
+  app.post(api.cart.add.path, rateLimiters.cart, isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const input = api.cart.add.input.parse(req.body);
@@ -259,7 +260,7 @@ export async function registerRoutes(
   });
 
   // ===== CHECKOUT =====
-  app.post(api.checkout.create.path, isAuthenticated, async (req: any, res) => {
+  app.post(api.checkout.create.path, rateLimiters.checkout, isAuthenticated, async (req: any, res) => {
     try {
       if (!stripe) {
         return res.status(400).json({ message: "Payment system not configured. Please contact support." });
