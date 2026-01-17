@@ -7,6 +7,7 @@ import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integra
 import Stripe from "stripe";
 import { securityHeadersMiddleware } from "./middleware/securityHeaders";
 import { rateLimiters } from "./middleware/rateLimit";
+import { handleStripeWebhook, rawBodyParser } from "./webhooks/stripe";
 
 // Initialize Stripe if key is available
 // Using stable API version compatible with stripe@20.1.2
@@ -318,6 +319,7 @@ export async function registerRoutes(
         cancel_url: `${req.protocol}://${req.get('host')}/cart`,
         metadata: {
           orderId: order.id.toString(),
+          userId: userId,
         },
       });
       
@@ -405,6 +407,10 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to fetch order" });
     }
   });
+
+  // ===== WEBHOOKS =====
+  // Stripe webhook endpoint (must come before body parser in middleware chain)
+  app.post("/api/webhooks/stripe", rawBodyParser, handleStripeWebhook);
 
   // Seed database on startup
   await seedDatabase();
